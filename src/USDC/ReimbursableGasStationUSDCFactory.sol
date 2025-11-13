@@ -16,7 +16,7 @@ contract ReimbursableGasStationUSDCFactory {
 
     function createReimbursableGasStation(
         bytes32 _salt,
-        uint8 _feePercentage,
+        uint16 _feePercentage,
         address _reimbursementAddress
     ) external returns (address instance) {
         instance = address(

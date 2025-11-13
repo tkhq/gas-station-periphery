@@ -9,15 +9,15 @@ contract ReimbursableGasStationUSDC is AbstractReimbursableGasStation {
     error InvalidFeePercentage();
 
     AggregatorV3Interface internal priceFeed;
-    uint8 public immutable FEE_PERCENTAGE;
+    uint16 public immutable FEE_PERCENTAGE;
     uint8 public immutable PRICE_FEED_DECIMALS;
     uint8 public immutable USDC_DECIMALS;
     uint256 public immutable TEN_TO_USDC_DECIMALS;
     uint256 public immutable TEN_TO_18_PLUS_PRICE_FEED_DECIMALS;
 
-    constructor(address _priceFeed, uint8 _feePercentage, address _tkGasDelegate, address _reimbursementAddress, address _reimbursementErc20) AbstractReimbursableGasStation(_tkGasDelegate, _reimbursementAddress, _reimbursementErc20) {
+    constructor(address _priceFeed, uint16 _feePercentage, address _tkGasDelegate, address _reimbursementAddress, address _reimbursementErc20) AbstractReimbursableGasStation(_tkGasDelegate, _reimbursementAddress, _reimbursementErc20) {
         priceFeed = AggregatorV3Interface(_priceFeed);
-        if (_feePercentage > 100) {
+        if (_feePercentage > 10000) {
             revert InvalidFeePercentage();
         }
         FEE_PERCENTAGE = _feePercentage;
@@ -38,7 +38,7 @@ contract ReimbursableGasStationUSDC is AbstractReimbursableGasStation {
         }
         uint256 gasUsedForOracle = gasBefore - gasleft();
         modifiedGasAmount += gasUsedForOracle;
-        modifiedGasAmount += modifiedGasAmount * FEE_PERCENTAGE / 100; 
+        modifiedGasAmount += modifiedGasAmount * FEE_PERCENTAGE / 10000; 
         uint256 gasCostWei = modifiedGasAmount * tx.gasprice;
         
         uint256 usdcCost = (gasCostWei * price * TEN_TO_USDC_DECIMALS) / TEN_TO_18_PLUS_PRICE_FEED_DECIMALS;
