@@ -20,15 +20,17 @@ contract ReimbursableGasStationUSDC is AbstractReimbursableGasStation {
     }
 
     function _gasToReimburseInERC20(uint256 _gasAmount, bool _returns) internal override returns (uint256) {
-        uint256 modifiedGasAmount = _gasAmount + (_returns ? 100 : 0) + 9000; 
-        modifiedGasAmount += modifiedGasAmount * FEE_PERCENTAGE / 100; 
-        // 9000 is the gas cost of calling chainlink and internal functions
-        // 100 is the the extra permium of having a return value 
-
+        uint256 modifiedGasAmount = _gasAmount + (_returns ? 100 : 0) + 200; 
+        // 100 is the the extra permium of having a return value (estimated)
+        // 200 is the premium of the internal functions (estimated)
+        uint256 gasBefore = gasleft();
         uint256 price = _getUSDCPrice();
         if (price == 0) {
             revert InvalidPrice();
         }
+        uint256 gasUsedForOracle = gasBefore - gasleft();
+        modifiedGasAmount += gasUsedForOracle;
+        modifiedGasAmount += modifiedGasAmount * FEE_PERCENTAGE / 100; 
         uint256 usdcCost = ((modifiedGasAmount * tx.gasprice * price) / 1e18) / 100; 
         return usdcCost;
     }
