@@ -15,7 +15,9 @@ contract ReimbursableGasStationUSDC is AbstractReimbursableGasStation {
     uint256 public immutable TEN_TO_USDC_DECIMALS;
     uint256 public immutable TEN_TO_18_PLUS_PRICE_FEED_DECIMALS;
 
-    constructor(address _priceFeed, uint16 _feePercentage, address _tkGasDelegate, address _reimbursementAddress, address _reimbursementErc20) AbstractReimbursableGasStation(_tkGasDelegate, _reimbursementAddress, _reimbursementErc20) {
+    bytes32 private constant _TRANSIENT_GAS_PRICE_SLOT = bytes32(uint256(keccak256("gas-station.reimbursable-gas-station-usdc.gas-price")) - 1);
+
+    constructor(address _priceFeed, uint16 _feePercentage, address _tkGasDelegate, address _reimbursementAddress, address _reimbursementErc20, uint16 _gasFeeBasisPoints, uint256 _minimumGasFee) AbstractReimbursableGasStation(_tkGasDelegate, _reimbursementAddress, _reimbursementErc20, _gasFeeBasisPoints, _minimumGasFee) {
         priceFeed = AggregatorV3Interface(_priceFeed);
         if (_feePercentage > 10000) {
             revert InvalidFeePercentage();
@@ -27,23 +29,8 @@ contract ReimbursableGasStationUSDC is AbstractReimbursableGasStation {
         TEN_TO_18_PLUS_PRICE_FEED_DECIMALS = 10 ** 18 * (10 ** PRICE_FEED_DECIMALS);
     }
 
-    function _gasToReimburseInERC20(uint256 _gasAmount, bool _returns) internal override returns (uint256) {
-        uint256 modifiedGasAmount = _gasAmount + (_returns ? 100 : 0) + 26000; 
-        // 100 is the the extra permium of having a return value (estimated)
-        // 26000 is the premium of the internal functions (estimated) + a transferfrom (estimated)
-        uint256 gasBefore = gasleft();
-        uint256 price = _getUSDCPrice();
-        if (price == 0) {
-            revert InvalidPrice();
-        }
-        uint256 gasUsedForOracle = gasBefore - gasleft();
-        modifiedGasAmount += gasUsedForOracle;
-        modifiedGasAmount += modifiedGasAmount * FEE_PERCENTAGE / 10000; 
-        uint256 gasCostWei = modifiedGasAmount * tx.gasprice;
-        
-        uint256 usdcCost = (gasCostWei * price * TEN_TO_USDC_DECIMALS) / TEN_TO_18_PLUS_PRICE_FEED_DECIMALS;
-        
-        return usdcCost;
+    function _convertGasToERC20(uint256 _gasAmount) internal override returns (uint256) {
+    
     }
 
     function _getUSDCPrice() internal view returns (uint256) {
