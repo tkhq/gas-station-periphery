@@ -8,12 +8,13 @@ import {IsDelegated} from "./IsDelegated.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
-
 abstract contract AbstractReimbursableGasStation {
     error NotDelegated();
-    error TransferFailed();
     error InvalidSessionSignature();
     error InsufficientBalance();
+    error GasLimitExceeded();
+
+    error r(uint256 a);
 
     event GasReimbursed(uint256 gasUsed, uint256 reimbursementAmount, address from, address destination);
     event ExecutionFailed(address target, address to, uint256 ethAmount, bytes data);
@@ -23,19 +24,28 @@ abstract contract AbstractReimbursableGasStation {
     address public immutable REIMBURSEMENT_ADDRESS;
     address public immutable REIMBURSEMENT_ERC20;
     uint16 public immutable GAS_FEE_BASIS_POINTS;
-    uint256 public immutable BASE_GAS_FEE; 
+    uint256 public immutable BASE_GAS_FEE;
+    uint256 public immutable MAX_GAS_LIMIT;
     IERC20 public immutable REIMBURSEMENT_ERC20_TOKEN;
 
     mapping(address => bytes) public cachedPackedSessionSignatureData;
     mapping(address => uint256) public unclaimedGasReimbursements;
 
-    constructor(address _tkGasDelegate, address _reimbursementAddress, address _reimbursementErc20, uint16 _gasFeeBasisPoints, uint256 _minimumGasFee) {
+    constructor(
+        address _tkGasDelegate,
+        address _reimbursementAddress,
+        address _reimbursementErc20,
+        uint16 _gasFeeBasisPoints,
+        uint256 _minimumGasFee,
+        uint256 _maxGasLimit
+    ) {
         TK_GAS_DELEGATE = _tkGasDelegate;
         REIMBURSEMENT_ADDRESS = _reimbursementAddress;
         REIMBURSEMENT_ERC20 = _reimbursementErc20;
         REIMBURSEMENT_ERC20_TOKEN = IERC20(_reimbursementErc20);
         GAS_FEE_BASIS_POINTS = _gasFeeBasisPoints;
         BASE_GAS_FEE = _minimumGasFee;
+        MAX_GAS_LIMIT = _maxGasLimit;
     }
 
     function _isDelegated(address _targetEoA) internal view returns (bool) {
@@ -49,15 +59,18 @@ abstract contract AbstractReimbursableGasStation {
         _;
     }
 
-    modifier onlyValidSessionSignature(bytes calldata _packedSessionSignatureData, address _targetEoA) {
-        if (_packedSessionSignatureData.length != 85 || cachedPackedSessionSignatureData[_targetEoA] != _packedSessionSignatureData) {
-            revert InvalidSessionSignature();
+    modifier withinGasLimit(uint256 _gasLimit) {
+        if (_gasLimit > MAX_GAS_LIMIT) {
+            revert GasLimitExceeded();
         }
         _;
     }
 
-    function _getOrInsertCachedPackedSessionSignatureData(address _targetEoA, bytes calldata _packedSessionSignatureData) internal view returns (bytes memory) {
-        bytes memory toReturn; 
+    function _getOrInsertCachedPackedSessionSignatureData(
+        address _targetEoA,
+        bytes calldata _packedSessionSignatureData
+    ) internal returns (bytes memory) {
+        bytes memory toReturn;
         if (_packedSessionSignatureData.length == 0) {
             toReturn = cachedPackedSessionSignatureData[_targetEoA];
         } else {
@@ -76,23 +89,28 @@ abstract contract AbstractReimbursableGasStation {
     // todo: use transient storage to cache gas amount
 
     // Execute functions
-    function executeReturns(address _target, address _to, uint256 _ethAmount, bytes calldata _packedSessionSignatureData, bytes calldata _data)
-        external
-        onlyDelegated(_target)
-        returns (bytes memory)
-    {
+    function executeReturns(
+        uint256 _gasLimitERC20,
+        address _target,
+        address _to,
+        uint256 _ethAmount,
+        bytes calldata _packedSessionSignatureData,
+        bytes calldata _data
+    ) external onlyDelegated(_target) withinGasLimit(_gasLimitERC20) returns (bytes memory) {
         uint256 gasStart = gasleft();
 
-        bytes memory packedSessionSignatureData = _getOrInsertCachedPackedSessionSignatureData(_target, _packedSessionSignatureData);
-        uint256 totalGasLimitERC20 = _convertGasToERC20(tx.gaslimit);
+        bytes memory packedSessionSignatureData =
+            _getOrInsertCachedPackedSessionSignatureData(_target, _packedSessionSignatureData);
 
-        bytes memory transferGasLimitData = abi.encodeWithSelector(_IERC20.transfer.selector, address(this), totalGasLimitERC20);
+        uint256 startBalance = REIMBURSEMENT_ERC20_TOKEN.balanceOf(address(this));
+        // This function works by pulling the entire gas limit from the user in erc20 tokens, then paying back the unused gas
+        bytes memory transferGasLimitData =
+            abi.encodeWithSelector(IERC20.transfer.selector, address(this), _gasLimitERC20);
         bytes memory data = abi.encodePacked(packedSessionSignatureData, transferGasLimitData);
-        ITKGasDelegate(_target).executeSession(REIMBURSEMENT_ADDRESS, 0, data);
-        if(REIMBURSEMENT_ERC20_TOKEN.balanceOf(address(this)) < totalGasLimitERC20) {
-            revert InsufficientBalance(); // only revert where the paymaster can lose money
+        ITKGasDelegate(_target).executeSession(REIMBURSEMENT_ERC20, 0, data);
+        if (REIMBURSEMENT_ERC20_TOKEN.balanceOf(address(this)) - startBalance < _gasLimitERC20) {
+            revert InsufficientBalance(); // The paymaster can lose money on this revert
         }
-
         bytes memory result = "";
         try ITKGasDelegate(_target).executeReturns(_to, _ethAmount, _data) returns (bytes memory res) {
             result = res;
@@ -102,30 +120,44 @@ abstract contract AbstractReimbursableGasStation {
         }
         uint256 gasUsed = gasStart - gasleft();
         gasUsed += (gasUsed * GAS_FEE_BASIS_POINTS / 10000) + BASE_GAS_FEE;
+
         uint256 reimbursementAmountERC20 = _convertGasToERC20(gasUsed);
 
-        SafeTransferLib.transfer(REIMBURSEMENT_ERC20, REIMBURSEMENT_ADDRESS, reimbursementAmountERC20);
+        if (reimbursementAmountERC20 > _gasLimitERC20) {
+            // Reimburse up to the limit if the gas limit is exceeded. The paymaster can lose money on this
+            // The paymaster should set sane limits to avoid this
+            SafeTransferLib.safeTransfer(REIMBURSEMENT_ERC20, REIMBURSEMENT_ADDRESS, _gasLimitERC20);
+            emit GasReimbursed(gasUsed, _gasLimitERC20, _target, REIMBURSEMENT_ADDRESS);
+            // Then we attempt to pay the excess to the reimbursement address, but there is no guarantee it will succeed
+            bytes memory transferExcessData = abi.encodeWithSelector(
+                IERC20.transfer.selector, REIMBURSEMENT_ADDRESS, _gasLimitERC20 - reimbursementAmountERC20
+            );
+            bytes memory excessData = abi.encodePacked(packedSessionSignatureData, transferExcessData);
+            try ITKGasDelegate(_target).executeSession(REIMBURSEMENT_ERC20, 0, excessData) {
+                // Transfer succeeded
+                emit GasReimbursed(gasUsed, _gasLimitERC20 - reimbursementAmountERC20, _target, REIMBURSEMENT_ADDRESS);
+            } catch {
+                emit TransferFailed(REIMBURSEMENT_ADDRESS, _gasLimitERC20 - reimbursementAmountERC20);
+            }
+            return result;
+        }
+
+        SafeTransferLib.safeTransfer(REIMBURSEMENT_ERC20, REIMBURSEMENT_ADDRESS, reimbursementAmountERC20);
         emit GasReimbursed(gasUsed, reimbursementAmountERC20, _target, REIMBURSEMENT_ADDRESS);
 
-        uint256 amountToReturn = totalGasLimitERC20 - reimbursementAmountERC20;
+        uint256 amountToReturn = _gasLimitERC20 - reimbursementAmountERC20;
 
-        try SafeTransferLib.transfer(REIMBURSEMENT_ERC20, _target, amountToReturn) { // this is so the transfer can't grief the paymaster by reverting
-        } catch {
+        // Transfer the refund directly from the gas station to the user
+        // (We can't use executeSession here because the tokens are in the gas station's balance, not the user's)
+        // Use a low-level call to allow try-catch on the transfer
+        (bool success,) =
+            REIMBURSEMENT_ERC20.call(abi.encodeWithSelector(IERC20.transfer.selector, _target, amountToReturn));
+        if (!success) {
             // emit event for failed transfer
             unclaimedGasReimbursements[_target] += amountToReturn;
             emit TransferFailed(_target, amountToReturn);
         }
         return result;
-
-        /*
-        uint256 gasStart = gasleft();
-        bytes memory result = ITKGasDelegate(_target).executeReturns(_to, _ethAmount, _data);
-        uint256 gasUsed = gasStart - gasleft();
-        uint256 reimbursementAmount = _gasToReimburseInERC20(gasUsed, true);
-        SafeTransferLib.safeTransferFrom(REIMBURSEMENT_ERC20, _target, REIMBURSEMENT_ADDRESS, reimbursementAmount);
-        emit GasReimbursed(gasUsed, reimbursementAmount, _target, REIMBURSEMENT_ADDRESS);
-        return result;
-        */
     }
 
     function claimUnclaimedGasReimbursements() external {
@@ -134,93 +166,21 @@ abstract contract AbstractReimbursableGasStation {
             revert InsufficientBalance();
         }
         unclaimedGasReimbursements[msg.sender] = 0;
-        SafeTransferLib.transfer(REIMBURSEMENT_ERC20, msg.sender, amountToClaim);
-    }
-/*
-    function execute(address _target, address _to, uint256 _ethAmount, bytes calldata _data) external onlyDelegated(_target) override {
-        uint256 gasStart = gasleft();
-        ITKGasDelegate(_target).execute(_to, _ethAmount, _data);
-        uint256 gasUsed = gasStart - gasleft();
-        uint256 reimbursementAmount = _gasToReimburseInERC20(gasUsed, false);
-        SafeTransferLib.safeTransferFrom(REIMBURSEMENT_ERC20, _target, REIMBURSEMENT_ADDRESS, reimbursementAmount);
-        emit GasReimbursed(gasUsed, reimbursementAmount, _target, REIMBURSEMENT_ADDRESS);
+        SafeTransferLib.safeTransfer(REIMBURSEMENT_ERC20, msg.sender, amountToClaim);
     }
 
-    // ApproveThenExecute functions
-    function approveThenExecuteReturns(
-        address _target,
-        address _to,
-        uint256 _ethAmount,
-        address _erc20,
-        address _spender,
-        uint256 _approveAmount,
-        bytes calldata _data
-    ) external onlyDelegated(_target) override returns (bytes memory) {
-        uint256 gasStart = gasleft();
-        bytes memory result = ITKGasDelegate(_target).approveThenExecuteReturns(_to, _ethAmount, _erc20, _spender, _approveAmount, _data);
-        uint256 gasUsed = gasStart - gasleft();
-        uint256 reimbursementAmount = _gasToReimburseInERC20(gasUsed, true);
-        SafeTransferLib.safeTransferFrom(REIMBURSEMENT_ERC20, _target, REIMBURSEMENT_ADDRESS, reimbursementAmount);
-        emit GasReimbursed(gasUsed, reimbursementAmount, _target, REIMBURSEMENT_ADDRESS);
-        return result;
-    }
-
-    function approveThenExecute(
-        address _target,
-        address _to,
-        uint256 _ethAmount,
-        address _erc20,
-        address _spender,
-        uint256 _approveAmount,
-        bytes calldata _data
-    ) external onlyDelegated(_target) override {
-        uint256 gasStart = gasleft();
-        ITKGasDelegate(_target).approveThenExecute(_to, _ethAmount, _erc20, _spender, _approveAmount, _data);
-        uint256 gasUsed = gasStart - gasleft();
-        uint256 reimbursementAmount = _gasToReimburseInERC20(gasUsed, false);
-        SafeTransferLib.safeTransferFrom(REIMBURSEMENT_ERC20, _target, REIMBURSEMENT_ADDRESS, reimbursementAmount);
-        emit GasReimbursed(gasUsed, reimbursementAmount, _target, REIMBURSEMENT_ADDRESS);
-    }
-
-    // Batch execute functions
-    function executeBatchReturns(address _target, IBatchExecution.Call[] calldata _calls, bytes calldata _data)
+    function burnNonce(address _targetEoA, bytes calldata _signature, uint128 _nonce)
         external
-        onlyDelegated(_target)
-        override
-        returns (bytes[] memory)
+        onlyDelegated(_targetEoA)
     {
-        uint256 gasStart = gasleft();
-        bytes[] memory results = ITKGasDelegate(_target).executeBatchReturns(_calls, _data);
-        uint256 gasUsed = gasStart - gasleft();
-        uint256 reimbursementAmount = _gasToReimburseInERC20(gasUsed, true);
-        SafeTransferLib.safeTransferFrom(REIMBURSEMENT_ERC20, _target, REIMBURSEMENT_ADDRESS, reimbursementAmount);
-        emit GasReimbursed(gasUsed, reimbursementAmount, _target, REIMBURSEMENT_ADDRESS);
-        return results;
-    }
-
-    function executeBatch(address _target, IBatchExecution.Call[] calldata _calls, bytes calldata _data)
-        external
-        onlyDelegated(_target)
-        override
-    {
-        uint256 gasStart = gasleft();
-        ITKGasDelegate(_target).executeBatch(_calls, _data);
-        uint256 gasUsed = gasStart - gasleft();
-        uint256 reimbursementAmount = _gasToReimburseInERC20(gasUsed, false);
-        SafeTransferLib.safeTransferFrom(REIMBURSEMENT_ERC20, _target, REIMBURSEMENT_ADDRESS, reimbursementAmount);
-        emit GasReimbursed(gasUsed, reimbursementAmount, _target, REIMBURSEMENT_ADDRESS);
-    }
-    */
-
-    function burnNonce(address _targetEoA, bytes calldata _signature, uint128 _nonce) external onlyDelegated(_targetEoA) override {
         ITKGasDelegate(_targetEoA).burnNonce(_signature, _nonce);
     }
 
-    function getNonce(address _targetEoA) external view override returns (uint128) {
+    function getNonce(address _targetEoA) external view returns (uint128) {
         return ITKGasDelegate(_targetEoA).nonce();
     }
 
-    function isDelegated(address _targetEoA) external view override returns (bool) {
+    function isDelegated(address _targetEoA) external view returns (bool) {
         return _isDelegated(_targetEoA);
     }
 }

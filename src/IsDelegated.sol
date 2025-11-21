@@ -30,4 +30,3 @@ library IsDelegated {
         return delegatedTo == _targetDelegate;
     }
 }
-
