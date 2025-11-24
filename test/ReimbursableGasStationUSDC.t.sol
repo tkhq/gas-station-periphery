@@ -4,6 +4,7 @@ pragma solidity ^0.8.30;
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import {ReimbursableGasStationUSDC} from "../src/USDC/ReimbursableGasStationUSDC.sol";
+import {AbstractReimbursableGasStation} from "../src/AbstractReimbursableGasStation.sol";
 import {MockOracle} from "./mocks/MockOracle.t.sol";
 import {MockERC20} from "./mocks/MockERC20.t.sol";
 import {TKGasDelegate} from "../lib/gas-station/src/TKGasStation/TKGasDelegate.sol";
@@ -21,8 +22,8 @@ contract ReimbursableGasStationUSDCTestBase is Test {
     address payable public userA;
 
     uint16 public constant GAS_FEE_BASIS_POINTS = 100; // 1% (100 basis points)
-    uint256 public constant BASE_GAS_FEE = 21000; // Base gas fee
-    uint256 public constant MAX_GAS_LIMIT = 10_000_000_000; // Max gas limit in ERC20 tokens
+    uint256 public constant BASE_GAS_FEE_ERC20 = 20_000; // Base gas fee: 2 cents in USDC (0.02 * 10^6)
+    uint256 public constant MAX_GAS_LIMIT_ERC20 = 100_000_000; // Max gas limit: 100 dollars in USDC (100 * 10^6)
     uint8 public constant ORACLE_DECIMALS = 8;
 
     uint256 public constant USERA_PRIVATE_KEY = 0xAAAAAA;
@@ -61,8 +62,8 @@ contract ReimbursableGasStationUSDCTestBase is Test {
             reimbursementAddress,
             address(usdcToken),
             GAS_FEE_BASIS_POINTS,
-            BASE_GAS_FEE,
-            MAX_GAS_LIMIT
+            BASE_GAS_FEE_ERC20,
+            MAX_GAS_LIMIT_ERC20
         );
 
         // Delegate userA to the gas delegate
@@ -192,7 +193,7 @@ contract ReimbursableGasStationUSDCTestBase is Test {
         // With gas price = 1 gwei and ETH price = $1, even 1M gas would be:
         // 1000000 * 1e9 * 1e8 * 1e6 / 1e26 = 1e27 / 1e26 = 10 USDC (6 decimals) = 10000000
         // But we need a large buffer for actual gas usage, fees, and base gas fee
-        uint256 gasLimitERC20 = 1_000_000_000; // 1000 USDC (6 decimals) - large buffer for the test
+        uint256 gasLimitERC20 = 250_000; // 0.25 USDC (6 decimals) - 25 cents
         gasStation.executeReturns(gasLimitERC20, userA, address(someToken), 0, packedSessionData, executeData);
 
         assertEq(someToken.balanceOf(receiver), 10);
@@ -200,5 +201,68 @@ contract ReimbursableGasStationUSDCTestBase is Test {
         assertEq(someToken.balanceOf(userA), 90);
         assertLt(usdcToken.balanceOf(userA), userAStartBalance);
         assertEq(usdcToken.balanceOf(address(gasStation)), 0);
+    }
+
+    function test_FailedTokenTransferStillReimbursesPaymaster() public {
+        // Set a very low gas price for testing (1 gwei = 1e9 wei)
+        vm.txGasPrice(1e9);
+
+        uint128 counter = 1;
+        uint32 deadline = uint32(block.timestamp + 1 hours);
+        // Don't mint any someToken to userA - this will cause the transfer to fail
+         someToken.mint(userA, 1); // Only one, but tries to send 10 later
+        uint256 userAStartBalance = 5000 * 10 ** 6;
+        usdcToken.mint(userA, userAStartBalance); // money to pay the gas
+
+        address receiver = makeAddr("receiver");
+
+        uint256 reimbursementStartBalance = usdcToken.balanceOf(reimbursementAddress);
+
+        // Create signature for session execution
+        bytes memory signature = _signSessionExecuteWithSender(
+            USERA_PRIVATE_KEY,
+            userA,
+            counter,
+            deadline,
+            address(gasStation), // sender is the gas station
+            address(usdcToken) // output contract is USDC
+        );
+
+        // Construct packed session signature data (85 bytes)
+        bytes memory packedSessionData = _constructPackedSessionSignatureData(signature, counter, deadline);
+
+        uint128 nonce = ITKGasDelegate(userA).nonce();
+        bytes memory args = abi.encodeWithSelector(someToken.transfer.selector, receiver, 10);
+        bytes memory executeSignature =
+            _signExecute(USERA_PRIVATE_KEY, userA, nonce, uint32(block.timestamp + 86400), address(someToken), 0, args);
+        bytes memory executeData = _constructExecuteBytes(
+            executeSignature, nonce, uint32(block.timestamp + 86400), address(someToken), 0, args
+        );
+        uint256 gasLimitERC20 = 250_000; // 0.25 USDC (6 decimals) - 25 cents
+
+        // Expect ExecutionFailed event to be emitted
+        vm.expectEmit(true, true, true, true);
+        emit AbstractReimbursableGasStation.ExecutionFailed(userA, address(someToken), 0, executeData);
+
+        gasStation.executeReturns(gasLimitERC20, userA, address(someToken), 0, packedSessionData, executeData);
+
+        // Verify the token transfer failed - receiver should have 0 tokens
+        assertEq(someToken.balanceOf(receiver), 0, "Receiver should not receive tokens when transfer fails");
+        
+        // Verify userA still has 1 someToken (transfer failed)
+        assertEq(someToken.balanceOf(userA), 1, "UserA should still have 1 tokens");
+        
+        // Most importantly: verify the paymaster still got USDC reimbursement even though the transfer failed
+        assertGt(
+            usdcToken.balanceOf(reimbursementAddress),
+            reimbursementStartBalance + BASE_GAS_FEE_ERC20,
+            "Paymaster should still receive USDC reimbursement even when token transfer fails"
+        );
+        
+        // Verify userA's USDC balance decreased (they paid for gas)
+        assertLt(usdcToken.balanceOf(userA), userAStartBalance, "UserA should have paid USDC for gas");
+        
+        // Verify gas station has no leftover USDC
+        assertEq(usdcToken.balanceOf(address(gasStation)), 0, "Gas station should have no leftover USDC");
     }
 }

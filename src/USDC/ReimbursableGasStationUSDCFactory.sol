@@ -8,8 +8,8 @@ contract ReimbursableGasStationUSDCFactory {
     address public immutable REIMBURSEMENT_ERC20;
     address public immutable TK_GAS_DELEGATE;
     uint16 public immutable GAS_FEE_BASIS_POINTS;
-    uint256 public immutable BASE_GAS_FEE;
-    uint256 public immutable MAX_GAS_LIMIT;
+    uint256 public immutable BASE_GAS_FEE_ERC20;
+    uint256 public immutable MAX_GAS_LIMIT_ERC20;
 
     constructor(
         address _priceFeed,
@@ -23,8 +23,8 @@ contract ReimbursableGasStationUSDCFactory {
         REIMBURSEMENT_ERC20 = _reimbursementErc20;
         TK_GAS_DELEGATE = _tkGasDelegate;
         GAS_FEE_BASIS_POINTS = _gasFeeBasisPoints;
-        BASE_GAS_FEE = _baseGasFee;
-        MAX_GAS_LIMIT = _maxGasLimit;
+        BASE_GAS_FEE_ERC20 = _baseGasFee;
+        MAX_GAS_LIMIT_ERC20 = _maxGasLimit;
     }
 
     function createReimbursableGasStation(bytes32 _salt, address _reimbursementAddress)
@@ -38,8 +38,8 @@ contract ReimbursableGasStationUSDCFactory {
                 _reimbursementAddress,
                 REIMBURSEMENT_ERC20,
                 GAS_FEE_BASIS_POINTS,
-                BASE_GAS_FEE,
-                MAX_GAS_LIMIT
+                BASE_GAS_FEE_ERC20,
+                MAX_GAS_LIMIT_ERC20
             )
         );
         return instance;
