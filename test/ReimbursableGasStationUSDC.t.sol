@@ -194,7 +194,7 @@ contract ReimbursableGasStationUSDCTestBase is Test {
         // 1000000 * 1e9 * 1e8 * 1e6 / 1e26 = 1e27 / 1e26 = 10 USDC (6 decimals) = 10000000
         // But we need a large buffer for actual gas usage, fees, and base gas fee
         uint256 gasLimitERC20 = 250_000; // 0.25 USDC (6 decimals) - 25 cents
-        gasStation.executeReturns(gasLimitERC20, userA, address(someToken), 0, packedSessionData, executeData);
+        gasStation.executeReturns(gasLimitERC20, packedSessionData, userA, address(someToken), 0, executeData);
 
         assertEq(someToken.balanceOf(receiver), 10);
         assertGt(usdcToken.balanceOf(reimbursementAddress), reimbursementStartBalance);
@@ -244,7 +244,7 @@ contract ReimbursableGasStationUSDCTestBase is Test {
         vm.expectEmit(true, true, true, true);
         emit AbstractReimbursableGasStation.ExecutionFailed(userA, address(someToken), 0, executeData);
 
-        gasStation.executeReturns(gasLimitERC20, userA, address(someToken), 0, packedSessionData, executeData);
+        gasStation.executeReturns(gasLimitERC20, packedSessionData, userA, address(someToken), 0, executeData);
 
         // Verify the token transfer failed - receiver should have 0 tokens
         assertEq(someToken.balanceOf(receiver), 0, "Receiver should not receive tokens when transfer fails");
