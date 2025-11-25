@@ -17,8 +17,11 @@ abstract contract AbstractReimbursableGasStation {
     error r(uint256 a);
 
     event GasReimbursed(uint256 gasUsed, uint256 reimbursementAmount, address from, address destination);
+    event GasChangeReturned(uint256 gasChange, address target);
     event ExecutionFailed(address target, address to, uint256 ethAmount, bytes data);
     event TransferFailed(address to, uint256 amount);
+    event TransferFailedUnclaimedStored(address to, uint256 amount);
+    event GasPulled(uint256 gasLimit, address target);
 
     address public immutable TK_GAS_DELEGATE;
     address public immutable REIMBURSEMENT_ADDRESS;
@@ -82,6 +85,8 @@ abstract contract AbstractReimbursableGasStation {
 
         if (REIMBURSEMENT_ERC20_TOKEN.balanceOf(address(this)) < _gasLimitERC20) {
             revert InsufficientBalance(); // The paymaster can lose money on this revert
+        } else {
+            emit GasPulled(_gasLimitERC20, _target);
         }
     }
 
@@ -113,7 +118,7 @@ abstract contract AbstractReimbursableGasStation {
                 emit GasReimbursed(gasUsed, _gasLimitERC20, _target, REIMBURSEMENT_ADDRESS);
             } else {
                 unclaimedGasReimbursements[REIMBURSEMENT_ADDRESS] += _gasLimitERC20;
-                emit TransferFailed(REIMBURSEMENT_ADDRESS, _gasLimitERC20);
+                emit TransferFailedUnclaimedStored(REIMBURSEMENT_ADDRESS, _gasLimitERC20);
             }
 
             // Then we attempt to pay the excess to the reimbursement address, but there is no guarantee it will succeed
@@ -137,7 +142,7 @@ abstract contract AbstractReimbursableGasStation {
                 emit GasReimbursed(gasUsed, reimbursementAmountERC20, _target, REIMBURSEMENT_ADDRESS);
             } else {
                 unclaimedGasReimbursements[REIMBURSEMENT_ADDRESS] += reimbursementAmountERC20;
-                emit TransferFailed(REIMBURSEMENT_ADDRESS, reimbursementAmountERC20);
+                emit TransferFailedUnclaimedStored(REIMBURSEMENT_ADDRESS, reimbursementAmountERC20);
             }
 
             uint256 amountToReturn = _gasLimitERC20 - reimbursementAmountERC20;
@@ -150,15 +155,15 @@ abstract contract AbstractReimbursableGasStation {
                 if (!success) {
                     // emit event for failed transfer
                     unclaimedGasReimbursements[_target] += amountToReturn;
-                    emit TransferFailed(_target, amountToReturn);
+                    emit TransferFailedUnclaimedStored(_target, amountToReturn);
+                } else {
+                    emit GasChangeReturned(amountToReturn, _target);
                 }
             }
         }
     }
 
     function _convertGasToERC20(uint256 _gasAmount) internal virtual returns (uint256);
-
-    // todo: use transient storage to cache gas amount
 
     // Execute functions
     function executeReturns(

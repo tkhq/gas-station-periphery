@@ -4,7 +4,6 @@ pragma solidity ^0.8.30;
 import {AbstractReimbursableGasStation} from "../AbstractReimbursableGasStation.sol";
 import {AggregatorV3Interface} from
     "chainlink-brownie-contracts/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
-import {TransientSlot} from "@openzeppelin/contracts/utils/TransientSlot.sol";
 
 contract ReimbursableGasStationUSDC is AbstractReimbursableGasStation {
     error InvalidPrice();
@@ -14,9 +13,6 @@ contract ReimbursableGasStationUSDC is AbstractReimbursableGasStation {
     uint8 public immutable USDC_DECIMALS;
     uint256 public immutable TEN_TO_USDC_DECIMALS;
     uint256 public immutable TEN_TO_18_PLUS_PRICE_FEED_DECIMALS;
-
-    bytes32 internal constant _TRANSIENT_GAS_PRICE_SLOT =
-        bytes32(uint256(keccak256("gas-station.reimbursable-gas-station-usdc.gas-price")) - 1);
 
     constructor(
         address _priceFeed,
@@ -52,13 +48,8 @@ contract ReimbursableGasStationUSDC is AbstractReimbursableGasStation {
         return usdcCost;
     }
 
-    function _getUSDCPrice() internal returns (uint256) {
-        uint256 storedPrice = TransientSlot.tload(TransientSlot.asUint256(_TRANSIENT_GAS_PRICE_SLOT));
-        if (storedPrice != 0) {
-            return storedPrice;
-        }
+    function _getUSDCPrice() internal view returns (uint256) {
         (, int256 price,,,) = priceFeed.latestRoundData();
-        TransientSlot.tstore(TransientSlot.asUint256(_TRANSIENT_GAS_PRICE_SLOT), uint256(price));
         return uint256(price);
     }
 }
