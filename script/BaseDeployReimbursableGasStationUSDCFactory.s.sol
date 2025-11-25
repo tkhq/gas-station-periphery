@@ -3,7 +3,7 @@ pragma solidity ^0.8.30;
 
 import "forge-std/Script.sol";
 import "forge-std/console2.sol";
-import {ReimbursableGasStationUSDCFactory} from "../src/USDC/ReimbursableGasStationUSDCFactory.sol";
+import {ReimbursableGasStationUSDCFactory} from "../src/PayWithERC20/USDC/ReimbursableGasStationUSDCFactory.sol";
 
 contract BaseDeployReimbursableGasStationUSDCFactory is Script {
     // Base mainnet USDC/USD price feed
@@ -20,7 +20,7 @@ contract BaseDeployReimbursableGasStationUSDCFactory is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         ReimbursableGasStationUSDCFactory factory = new ReimbursableGasStationUSDCFactory(
-            PRICE_FEED, REIMBURSEMENT_ERC20, TK_GAS_DELEGATE, GAS_FEE_BASIS_POINTS, BASE_GAS_FEE_ERC20, MAX_GAS_LIMIT_ERC20
+            PRICE_FEED, REIMBURSEMENT_ERC20, TK_GAS_DELEGATE
         );
 
         console2.log("ReimbursableGasStationUSDCFactory deployed at:", address(factory));

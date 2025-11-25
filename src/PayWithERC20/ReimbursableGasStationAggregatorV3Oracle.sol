@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-import {AbstractReimbursableGasStation} from "../AbstractReimbursableGasStation.sol";
+import {AbstractReimbursableGasStation} from "./AbstractReimbursableGasStation.sol";
 import {AggregatorV3Interface} from
     "chainlink-brownie-contracts/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 
-contract ReimbursableGasStationUSDC is AbstractReimbursableGasStation {
+contract ReimbursableGasStationAggregatorV3Oracle is AbstractReimbursableGasStation {
     error InvalidPrice();
 
     AggregatorV3Interface internal priceFeed;
     uint8 public immutable PRICE_FEED_DECIMALS;
-    uint8 public immutable USDC_DECIMALS;
-    uint256 public immutable TEN_TO_USDC_DECIMALS;
+    uint8 public immutable REIMBURSEMENT_TOKEN_DECIMALS;
+    uint256 public immutable TEN_TO_REIMBURSEMENT_TOKEN_DECIMALS;
     uint256 public immutable TEN_TO_18_PLUS_PRICE_FEED_DECIMALS;
 
     constructor(
@@ -19,6 +19,7 @@ contract ReimbursableGasStationUSDC is AbstractReimbursableGasStation {
         address _tkGasDelegate,
         address _reimbursementAddress,
         address _reimbursementErc20,
+        uint8 _reimbursementTokenDecimals,
         uint16 _gasFeeBasisPoints,
         uint256 _minimumGasFee,
         uint256 _maxGasLimit
@@ -34,22 +35,23 @@ contract ReimbursableGasStationUSDC is AbstractReimbursableGasStation {
     {
         priceFeed = AggregatorV3Interface(_priceFeed);
         PRICE_FEED_DECIMALS = priceFeed.decimals();
-        USDC_DECIMALS = 6;
-        TEN_TO_USDC_DECIMALS = 10 ** USDC_DECIMALS;
+        REIMBURSEMENT_TOKEN_DECIMALS = _reimbursementTokenDecimals;
+        TEN_TO_REIMBURSEMENT_TOKEN_DECIMALS = 10 ** _reimbursementTokenDecimals;
         TEN_TO_18_PLUS_PRICE_FEED_DECIMALS = 10 ** 18 * (10 ** PRICE_FEED_DECIMALS);
     }
 
-    function _convertGasToERC20(uint256 _gasAmount) internal override returns (uint256) {
+    function _convertGasToERC20(uint256 _gasAmount) internal override view returns (uint256) {
         uint256 gasCostWei = _gasAmount * tx.gasprice;
 
-        uint256 price = _getUSDCPrice();
+        uint256 price = _getPrice();
 
-        uint256 usdcCost = (gasCostWei * price * TEN_TO_USDC_DECIMALS) / TEN_TO_18_PLUS_PRICE_FEED_DECIMALS;
-        return usdcCost;
+        uint256 tokenCost = (gasCostWei * price * TEN_TO_REIMBURSEMENT_TOKEN_DECIMALS) / TEN_TO_18_PLUS_PRICE_FEED_DECIMALS;
+        return tokenCost;
     }
 
-    function _getUSDCPrice() internal view returns (uint256) {
+    function _getPrice() internal view returns (uint256) {
         (, int256 price,,,) = priceFeed.latestRoundData();
         return uint256(price);
     }
 }
+

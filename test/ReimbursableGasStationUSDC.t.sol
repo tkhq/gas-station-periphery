@@ -3,8 +3,8 @@ pragma solidity ^0.8.30;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
-import {ReimbursableGasStationUSDC} from "../src/USDC/ReimbursableGasStationUSDC.sol";
-import {AbstractReimbursableGasStation} from "../src/AbstractReimbursableGasStation.sol";
+import {ReimbursableGasStationUSDC} from "../src/PayWithERC20/USDC/ReimbursableGasStationUSDC.sol";
+import {AbstractReimbursableGasStation} from "../src/PayWithERC20/AbstractReimbursableGasStation.sol";
 import {MockOracle} from "./mocks/MockOracle.t.sol";
 import {MockERC20} from "./mocks/MockERC20.t.sol";
 import {TKGasDelegate} from "../lib/gas-station/src/TKGasStation/TKGasDelegate.sol";
@@ -119,8 +119,8 @@ contract ReimbursableGasStationUSDCTestBase is Test {
         bytes memory _signature,
         uint128 _nonce,
         uint32 _deadline,
-        address _to,
-        uint256 _value,
+        address /* _to */,
+        uint256 /* _value */,
         bytes memory _args
     ) internal pure returns (bytes memory) {
         require(_signature.length == 65, "sig len");

@@ -3,7 +3,7 @@ pragma solidity ^0.8.30;
 
 import "forge-std/Script.sol";
 import "forge-std/console2.sol";
-import {ReimbursableGasStationUSDC} from "../src/USDC/ReimbursableGasStationUSDC.sol";
+import {ReimbursableGasStationUSDC} from "../src/PayWithERC20/USDC/ReimbursableGasStationUSDC.sol";
 
 contract BaseDeployReimbursableGasStationUSDC is Script {
     // Base mainnet USDC/USD price feed
