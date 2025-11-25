@@ -1,19 +1,8 @@
 # TK Gas Station Periphery
 
-_These contracts are still in beta and should be only used at your own risk. These are not eligible for bug bounty_ 
-
 These are periphery contracts for interacting with the [TK Gas Station](https://github.com/tkhq/gas-station/)
 
-## Base Mainnet Deployments
+## Contracts
 
-- **ReimbursableGasStationUSDCFactory**: [0xE87DbF5f190b2aeAd45E64F73dbE7BeE25cAEcf1](https://basescan.org/address/0xE87DbF5f190b2aeAd45E64F73dbE7BeE25cAEcf1)
-- **ReimbursableGasStationUSDC**: [0xd04fFb5927F94DfaBE82A8C43D88811EE6a8373e](https://basescan.org/address/0xd04fFb5927F94DfaBE82A8C43D88811EE6a8373e)
+- **[Pay With ERC20](src/PayWithERC20/README.md)** - Contracts that enable users to pay gas with ERC-20 tokens such as USDC
 
-
-# Threat Model
-
-## What is it? 
-
-## What can go wrong?
-
-## What are we doing about it? 

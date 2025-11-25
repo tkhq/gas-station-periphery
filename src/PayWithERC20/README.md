@@ -1,3 +1,9 @@
+# Pay with ERC20 
+
+_These contracts are still in beta and should be only used at your own risk. These are not eligible for bug bounty_ 
+
+These contracts enable users to pay gas with an ERC-20 such as USDC
+
 # Deployments
 
 ## Base Mainnet Deployments
