@@ -63,7 +63,8 @@ contract ReimbursableGasStationUSDCTestBase is Test {
             address(usdcToken),
             GAS_FEE_BASIS_POINTS,
             BASE_GAS_FEE_ERC20,
-            MAX_GAS_LIMIT_ERC20
+            MAX_GAS_LIMIT_ERC20,
+            60_000
         );
 
         // Delegate userA to the gas delegate
@@ -194,7 +195,8 @@ contract ReimbursableGasStationUSDCTestBase is Test {
         // 1000000 * 1e9 * 1e8 * 1e6 / 1e26 = 1e27 / 1e26 = 10 USDC (6 decimals) = 10000000
         // But we need a large buffer for actual gas usage, fees, and base gas fee
         uint256 gasLimitERC20 = 250_000; // 0.25 USDC (6 decimals) - 25 cents
-        gasStation.executeReturns(gasLimitERC20, packedSessionData, userA, address(someToken), 0, executeData);
+        uint256 transactionGasLimitWei = 1_000_000;
+        gasStation.executeReturns(gasLimitERC20, transactionGasLimitWei, packedSessionData, userA, address(someToken), 0, executeData);
 
         assertEq(someToken.balanceOf(receiver), 10);
         assertGt(usdcToken.balanceOf(reimbursementAddress), reimbursementStartBalance);
@@ -239,12 +241,13 @@ contract ReimbursableGasStationUSDCTestBase is Test {
             executeSignature, nonce, uint32(block.timestamp + 86400), address(someToken), 0, args
         );
         uint256 gasLimitERC20 = 250_000; // 0.25 USDC (6 decimals) - 25 cents
+        uint256 transactionGasLimitWei = 1_000_000;
 
         // Expect ExecutionFailed event to be emitted
         vm.expectEmit(true, true, true, true);
         emit AbstractReimbursableGasStation.ExecutionFailed(userA, address(someToken), 0, executeData);
 
-        gasStation.executeReturns(gasLimitERC20, packedSessionData, userA, address(someToken), 0, executeData);
+        gasStation.executeReturns(gasLimitERC20, transactionGasLimitWei, packedSessionData, userA, address(someToken), 0, executeData);
 
         // Verify the token transfer failed - receiver should have 0 tokens
         assertEq(someToken.balanceOf(receiver), 0, "Receiver should not receive tokens when transfer fails");

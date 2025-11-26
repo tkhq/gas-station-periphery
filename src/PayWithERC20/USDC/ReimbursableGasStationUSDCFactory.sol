@@ -23,7 +23,8 @@ contract ReimbursableGasStationUSDCFactory {
         address _reimbursementAddress,
         uint16 _gasFeeBasisPoints,
         uint256 _baseGasFee,
-        uint256 _maxGasLimit
+        uint256 _maxDepositLimit,
+        uint256 _minimumTransactionGasLimitWei
     )
         external
         returns (address)
@@ -36,7 +37,8 @@ contract ReimbursableGasStationUSDCFactory {
                 REIMBURSEMENT_ERC20,
                 _gasFeeBasisPoints,
                 _baseGasFee,
-                _maxGasLimit
+                _maxDepositLimit,
+                _minimumTransactionGasLimitWei
             )
         );
     }

@@ -23,7 +23,8 @@ contract ReimbursableGasStationAggregatorV3Oracle is AbstractReimbursableGasStat
         uint16 _gasFeeBasisPoints,
         bool _erc20TransferSucceededReturnDataCheck,
         uint256 _minimumGasFee,
-        uint256 _maxGasLimit
+        uint256 _maxDepositLimit,
+        uint256 _minimumTransactionGasLimitWei
     )
         AbstractReimbursableGasStation(
             _tkGasDelegate,
@@ -32,7 +33,8 @@ contract ReimbursableGasStationAggregatorV3Oracle is AbstractReimbursableGasStat
             _gasFeeBasisPoints,
             _erc20TransferSucceededReturnDataCheck,
             _minimumGasFee,
-            _maxGasLimit
+            _maxDepositLimit,
+            _minimumTransactionGasLimitWei
         )
     {
         priceFeed = AggregatorV3Interface(_priceFeed);

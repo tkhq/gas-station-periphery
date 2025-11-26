@@ -12,7 +12,8 @@ contract BaseDeployReimbursableGasStationUSDC is Script {
     address private constant TK_GAS_DELEGATE = 0x000066a00056CD44008768E2aF00696e19A30084;
     uint16 private constant GAS_FEE_BASIS_POINTS = 100; // 1% (100 basis points)
     uint256 private constant BASE_GAS_FEE_ERC20 = 10_000; // Base gas fee: 1 cent in USDC (0.01 * 10^6)
-    uint256 private constant MAX_GAS_LIMIT_ERC20 = 10_000_000; // Max gas limit: 10 dollars in USDC (10 * 10^6)
+    uint256 private constant MAX_DEPOSIT_LIMIT_ERC20 = 10_000_000; // Max deposit limit: 10 dollars in USDC (10 * 10^6)
+    uint256 private constant MINIMUM_TRANSACTION_GAS_LIMIT_WEI = 60_000;
 
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
@@ -27,7 +28,8 @@ contract BaseDeployReimbursableGasStationUSDC is Script {
             REIMBURSEMENT_ERC20,
             GAS_FEE_BASIS_POINTS,
             BASE_GAS_FEE_ERC20,
-            MAX_GAS_LIMIT_ERC20
+            MAX_DEPOSIT_LIMIT_ERC20,
+            MINIMUM_TRANSACTION_GAS_LIMIT_WEI
         );
 
         console2.log("ReimbursableGasStationUSDC deployed at:", address(gasStation));
