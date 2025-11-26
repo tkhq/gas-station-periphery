@@ -20,6 +20,7 @@ contract ReimbursableGasStationUSDC is ReimbursableGasStationAggregatorV3Oracle 
             _reimbursementErc20,
             6, // USDC decimals
             _gasFeeBasisPoints,
+            false, // USDC always uses false for _erc20TransferSucceededReturnDataCheck
             _minimumGasFee,
             _maxGasLimit
         )

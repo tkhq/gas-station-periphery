@@ -13,8 +13,8 @@ abstract contract AbstractReimbursableGasStation {
     error InsufficientBalance();
     error GasLimitExceeded();
 
-    event GasReimbursed(uint256 _gasUsed, uint256 _reimbursementAmount, address _from, address _destination);
-    event GasChangeReturned(uint256 _gasChange, address _target);
+    event GasReimbursed(address _from, address _destination, uint256 _gasUsed, uint256 _reimbursementAmount);
+    event GasChangeReturned(address _target, uint256 _gasChange);
     event ExecutionFailed(address _target, address _to, uint256 _ethAmount, bytes _data);
     event BatchExecutionFailed(address _target, uint256 _callsLength);
     event ApproveThenExecuteFailed(
@@ -28,12 +28,14 @@ abstract contract AbstractReimbursableGasStation {
     );
     event TransferFailed(address _to, uint256 _amount);
     event TransferFailedUnclaimedStored(address _to, uint256 _amount);
-    event GasPulled(uint256 _gasLimit, address _target);
+    event GasPulled(address _from, uint256 _gasLimit);
+    event GasUnpaid(address _from, uint256 _amount);
 
+    uint16 public immutable GAS_FEE_BASIS_POINTS;
+    bool public immutable ERC20_TRANSFER_SUCCEEDED_RETURN_DATA_CHECK;
     address public immutable TK_GAS_DELEGATE;
     address public immutable REIMBURSEMENT_ADDRESS;
     address public immutable REIMBURSEMENT_ERC20;
-    uint16 public immutable GAS_FEE_BASIS_POINTS;
     uint256 public immutable BASE_GAS_FEE_ERC20;
     uint256 public immutable MAX_GAS_LIMIT_ERC20;
     IERC20 public immutable REIMBURSEMENT_ERC20_TOKEN;
@@ -54,6 +56,7 @@ abstract contract AbstractReimbursableGasStation {
         address _reimbursementAddress,
         address _reimbursementErc20,
         uint16 _gasFeeBasisPoints,
+        bool _erc20TransferSucceededReturnDataCheck, // only set to true if you need to check the return data (does not revert on failure)
         uint256 _minimumGasFee,
         uint256 _maxGasLimit
     ) {
@@ -64,6 +67,39 @@ abstract contract AbstractReimbursableGasStation {
         GAS_FEE_BASIS_POINTS = _gasFeeBasisPoints;
         BASE_GAS_FEE_ERC20 = _minimumGasFee;
         MAX_GAS_LIMIT_ERC20 = _maxGasLimit;
+        ERC20_TRANSFER_SUCCEEDED_RETURN_DATA_CHECK = _erc20TransferSucceededReturnDataCheck;
+    }
+
+    function _convertGasToERC20(uint256 _gasAmount) internal virtual returns (uint256);
+
+    function _transferReimbursementERC20(address _to, uint256 _amount) internal returns (bool) {
+        (bool success, bytes memory returnData) = REIMBURSEMENT_ERC20.call(
+            abi.encodeWithSelector(IERC20.transfer.selector, _to, _amount)
+        );
+        if(ERC20_TRANSFER_SUCCEEDED_RETURN_DATA_CHECK){ // only needed for non-standard erc-20 tokens that don't revert on failure to transfer
+            return success && (returnData.length == 0 || abi.decode(returnData, (bool)));
+        } else {
+            return success; 
+        }
+    }
+
+    function _trySessionTransfer(address _from, address _token, address _destination, uint256 _amount, bytes calldata _packedSessionSignatureData) internal returns (bool success) {
+        bytes memory data = _encodeForSessionBasedTransfer(_destination, _amount, _packedSessionSignatureData);
+        try ITKGasDelegate(_from).executeSessionReturns(_token, 0, data) returns (bytes memory returnData) {
+            if (ERC20_TRANSFER_SUCCEEDED_RETURN_DATA_CHECK && returnData.length > 0) {
+                success = abi.decode(returnData, (bool));
+            } else {
+                success = true;
+            }
+        } catch {
+            success = false;
+        }
+    }
+
+    function _encodeForSessionBasedTransfer(address _to, uint256 _amount, bytes calldata _packedSessionSignatureData) internal pure returns (bytes memory) {
+        bytes memory transferData =
+            abi.encodeWithSelector(IERC20.transfer.selector, _to, _amount);
+        return abi.encodePacked(_packedSessionSignatureData, transferData);
     }
 
     function _isDelegated(address _targetEoA) internal view returns (bool) {
@@ -94,15 +130,11 @@ abstract contract AbstractReimbursableGasStation {
         gasStart = _initGasAndValidate(_gasLimitERC20, _packedSessionSignatureData, _target);
         uint256 startBalance = REIMBURSEMENT_ERC20_TOKEN.balanceOf(address(this));
         // This function works by pulling the entire gas limit from the user in erc20 tokens, then paying back the unused gas
-        bytes memory transferGasLimitData =
-            abi.encodeWithSelector(IERC20.transfer.selector, address(this), _gasLimitERC20);
-        bytes memory data = abi.encodePacked(_packedSessionSignatureData, transferGasLimitData);
-        ITKGasDelegate(_target).executeSession(REIMBURSEMENT_ERC20, 0, data);
-
-        if (REIMBURSEMENT_ERC20_TOKEN.balanceOf(address(this)) - startBalance < _gasLimitERC20) {
+        bool transferSucceeded = _trySessionTransfer(_target, REIMBURSEMENT_ERC20, address(this), _gasLimitERC20, _packedSessionSignatureData);
+        if (!transferSucceeded || REIMBURSEMENT_ERC20_TOKEN.balanceOf(address(this)) - startBalance < _gasLimitERC20) {
             revert InsufficientBalance(); // The paymaster can lose money on this revert
         } else {
-            emit GasPulled(_gasLimitERC20, _target);
+            emit GasPulled(_target, _gasLimitERC20);
         }
     }
 
@@ -127,35 +159,28 @@ abstract contract AbstractReimbursableGasStation {
         if (reimbursementAmountERC20 > _gasLimitERC20) {
             // Reimburse up to the limit if the gas limit is exceeded. The paymaster can lose money on this
             // The paymaster should set sane limits to avoid this
-            (bool limitReimbursementSuccess,) = REIMBURSEMENT_ERC20.call(
-                abi.encodeWithSelector(IERC20.transfer.selector, REIMBURSEMENT_ADDRESS, _gasLimitERC20)
-            );
+            bool limitReimbursementSuccess = _transferReimbursementERC20(REIMBURSEMENT_ADDRESS, _gasLimitERC20);
             if (limitReimbursementSuccess) {
-                emit GasReimbursed(gasUsed, _gasLimitERC20, _target, REIMBURSEMENT_ADDRESS);
+                emit GasReimbursed(_target, REIMBURSEMENT_ADDRESS, gasUsed, _gasLimitERC20);
             } else {
                 unclaimedGasReimbursements[REIMBURSEMENT_ADDRESS] += _gasLimitERC20;
                 emit TransferFailedUnclaimedStored(REIMBURSEMENT_ADDRESS, _gasLimitERC20);
             }
 
+            uint256 excessAmount = reimbursementAmountERC20 - _gasLimitERC20;
             // Then we attempt to pay the excess to the reimbursement address, but there is no guarantee it will succeed
-            bytes memory transferExcessData = abi.encodeWithSelector(
-                IERC20.transfer.selector, REIMBURSEMENT_ADDRESS, _gasLimitERC20 - reimbursementAmountERC20
-            );
-            bytes memory excessData = abi.encodePacked(_packedSessionSignatureData, transferExcessData);
-            try ITKGasDelegate(_target).executeSession(REIMBURSEMENT_ERC20, 0, excessData) {
+            bool transferSucceeded = _trySessionTransfer(_target, REIMBURSEMENT_ERC20, REIMBURSEMENT_ADDRESS, excessAmount, _packedSessionSignatureData);
+            if (transferSucceeded) {
                 // Transfer succeeded
-                emit GasReimbursed(gasUsed, _gasLimitERC20 - reimbursementAmountERC20, _target, REIMBURSEMENT_ADDRESS);
-            } catch {
-                emit TransferFailed(REIMBURSEMENT_ADDRESS, _gasLimitERC20 - reimbursementAmountERC20);
+                emit GasReimbursed(_target, REIMBURSEMENT_ADDRESS, gasUsed, excessAmount);
+            } else {
+                emit GasUnpaid(REIMBURSEMENT_ADDRESS, excessAmount); // One state where the user abused the paymaster
             }
         } else { 
             // Otherwise return the change to the user
-
-            (bool reimbursementSuccess,) = REIMBURSEMENT_ERC20.call(
-                abi.encodeWithSelector(IERC20.transfer.selector, REIMBURSEMENT_ADDRESS, reimbursementAmountERC20)
-            );
+            bool reimbursementSuccess = _transferReimbursementERC20(REIMBURSEMENT_ADDRESS, reimbursementAmountERC20);
             if (reimbursementSuccess) {
-                emit GasReimbursed(gasUsed, reimbursementAmountERC20, _target, REIMBURSEMENT_ADDRESS);
+                emit GasReimbursed(_target, REIMBURSEMENT_ADDRESS, gasUsed, reimbursementAmountERC20);
             } else {
                 unclaimedGasReimbursements[REIMBURSEMENT_ADDRESS] += reimbursementAmountERC20;
                 emit TransferFailedUnclaimedStored(REIMBURSEMENT_ADDRESS, reimbursementAmountERC20);
@@ -166,20 +191,17 @@ abstract contract AbstractReimbursableGasStation {
             // Transfer the refund directly from the gas station to the user
             // Use a low-level call to allow try-catch on the transfer
             if (amountToReturn > 0) {
-            (bool success,) =
-                    REIMBURSEMENT_ERC20.call(abi.encodeWithSelector(IERC20.transfer.selector, _target, amountToReturn));
-                if (!success) {
+                bool transferSucceeded = _transferReimbursementERC20(_target, amountToReturn);
+                if (transferSucceeded) {
+                    emit GasChangeReturned(_target, amountToReturn);
+                } else {
                     // emit event for failed transfer
                     unclaimedGasReimbursements[_target] += amountToReturn;
                     emit TransferFailedUnclaimedStored(_target, amountToReturn);
-                } else {
-                    emit GasChangeReturned(amountToReturn, _target);
                 }
             }
         }
     }
-
-    function _convertGasToERC20(uint256 _gasAmount) internal virtual returns (uint256);
 
     // Execute functions
     function executeReturns(

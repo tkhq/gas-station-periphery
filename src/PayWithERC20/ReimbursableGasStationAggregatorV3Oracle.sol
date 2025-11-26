@@ -21,6 +21,7 @@ contract ReimbursableGasStationAggregatorV3Oracle is AbstractReimbursableGasStat
         address _reimbursementErc20,
         uint8 _reimbursementTokenDecimals,
         uint16 _gasFeeBasisPoints,
+        bool _erc20TransferSucceededReturnDataCheck,
         uint256 _minimumGasFee,
         uint256 _maxGasLimit
     )
@@ -29,6 +30,7 @@ contract ReimbursableGasStationAggregatorV3Oracle is AbstractReimbursableGasStat
             _reimbursementAddress,
             _reimbursementErc20,
             _gasFeeBasisPoints,
+            _erc20TransferSucceededReturnDataCheck,
             _minimumGasFee,
             _maxGasLimit
         )
