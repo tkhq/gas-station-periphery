@@ -42,6 +42,18 @@ MINIMUM_TRANSACTION_GAS_LIMIT_WEI=60000
 GAS_STATION_SALT=0x...
 ```
 
+In the future, for making a new gas station with a new fee tier or place to reimburse to, you simply need to call that factory unless you need to change out the oracle. 
+
+Then finally, run the command to deploy:
+
+```bash
+forge script script/PayWithERC20/DeployReimbursableGasStationUSDCAndFactory.s.sol \
+  --rpc-url base \
+  --broadcast \
+  --verify \
+  --etherscan-api-key $ETHERSCAN_API_KEY
+```
+
 # Making a Custom Reimbursable Gas Station
 
 If you want to make a custom gas station that uses Chainlink's AggregatorV3Interface with different ERC-20, you can inherit from ReimbursableGasStationAggregatorV3Oracle or deploy an instance of it with the right arguments. 
@@ -151,7 +163,6 @@ _For USDC, the ERC20_TRANSFER_SUCCEEDED_RETURN_DATA_CHECK immutable should alway
 
 In the constructor, there is a ERC20_TRANSFER_SUCCEEDED_RETURN_DATA_CHECK immutable that can be set to true if the ERC-20 being used does NOT revert on transfer when the transfer fails, and then returns a boolean FALSE instead. This is to handle non-standard ERC-20 implementations.
 Without this extra check, if the paymaster is using non-standard ERC-20s for reimbursements, this could fail open, and the contract will believe that all be reimbursed.
-
 
 ### Oracle failure 
 
