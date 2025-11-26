@@ -77,21 +77,21 @@ This prevents the user from griefing the paymaster by "pulling" an initial amoun
 
 This example uses USDC, but you could replace this with any ERC-20. This does not use transferFrom or any approve
 
-1. User delegates to the gas delegate with a type 4 transaction. This can be paid for by the paymaster
-2. The user signs two intents (gasless)
-    a. The user signs an intent to allow the gas station to interact with USDC on behalf of the user up to a time limit (this can be cached safely)
-    b. The user signs an intent for the actual execution they want to pay for in USDC
+1. User delegates to the gas delegate with a type 4 transaction. This can be paid for by the paymaster.
+2. The user signs two intents (gasless):
+   - The user signs an intent to allow the gas station to interact with USDC on behalf of the user up to a time limit (this can be cached safely).
+   - The user signs an intent for the actual execution they want to pay for in USDC.
 3. The paymaster then broadcasts the transaction with:
-    a. The two signatures from step 2
-    b. Calldata associated with that transaction
-    c. The initial amount of USDC that will be used to pay for the transaction. This is called "_initialDepositERC20"
+   - The two signatures from step 2.
+   - Calldata associated with that transaction.
+   - The initial amount of USDC that will be used to pay for the transaction. This is called `_initialDepositERC20`.
 4. The gas station contract then:
-    a. Pulls _initialDepositERC20 using a transfer and stores it in the contract using the session intent in step 2.a 
-    b. Executes the transaction using the execution intent in step 2.b
-    c. Calculates the cost of the transaction in USDC using an oracle, then adds a base fee and a percentage fee in basis points
-    d. Based on the cost of the transaction:
-        i. If it's less than _initialDepositERC20, it will pay the reimbursement address the cost plus fees, and give the user the change
-        ii. If it's greater than _initialDepositERC20, it will pay reimbursement address the full _initialDepositERC20 amount and attempt to collect the remainder from the user
+   - Pulls `_initialDepositERC20` using a transfer and stores it in the contract using the session intent in step 2.a.
+   - Executes the transaction using the execution intent in step 2.b.
+   - Calculates the cost of the transaction in USDC using an oracle, then adds a base fee and a percentage fee in basis points.
+   - Based on the cost of the transaction:
+     - If it's less than `_initialDepositERC20`, it will pay the reimbursement address the cost plus fees, and give the user the change.
+     - If it's greater than `_initialDepositERC20`, it will pay reimbursement address the full `_initialDepositERC20` amount and attempt to collect the remainder from the user.
 
 ## What can go wrong? And what we are doing about it?
 
