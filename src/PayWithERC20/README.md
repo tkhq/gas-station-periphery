@@ -44,15 +44,17 @@ GAS_STATION_SALT=0x...
 
 In the future, for making a new gas station with a new fee tier or place to reimburse to, you simply need to call that factory unless you need to change out the oracle. 
 
-Then finally, run the command to deploy:
+ Run the command to deploy:
 
 ```bash
 forge script script/PayWithERC20/DeployReimbursableGasStationUSDCAndFactory.s.sol \
-  --rpc-url base \
+  --rpc-url NETWORK \
   --broadcast \
   --verify \
   --etherscan-api-key $ETHERSCAN_API_KEY
 ```
+
+Finally, open a PR to add the deploy to this readme. 
 
 # Making a Custom Reimbursable Gas Station
 
@@ -174,5 +176,5 @@ For USDC on Base, we intend to use the ETH/USDC Chainlink oracle, which is large
 
 ## Base Mainnet Deployments
 
-- **ReimbursableGasStationUSDCFactory**: [0xE87DbF5f190b2aeAd45E64F73dbE7BeE25cAEcf1](https://basescan.org/address/0xE87DbF5f190b2aeAd45E64F73dbE7BeE25cAEcf1)
-- **ReimbursableGasStationUSDC**: [0xd04fFb5927F94DfaBE82A8C43D88811EE6a8373e](https://basescan.org/address/0xd04fFb5927F94DfaBE82A8C43D88811EE6a8373e)
+- **ReimbursableGasStationUSDCFactory**: [0xf4bb36e54bf69434cc2f483cfee7a6b24f55323f](https://basescan.org/address/0xf4bb36e54bf69434cc2f483cfee7a6b24f55323f)
+- **ReimbursableGasStationUSDC**: [0x4c0a2998b4dc7baf418109b80e5dde7395703dcb](https://basescan.org/address/0x4c0a2998b4dc7baf418109b80e5dde7395703dcb#code)
