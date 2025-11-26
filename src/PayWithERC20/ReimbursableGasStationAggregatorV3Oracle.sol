@@ -44,12 +44,13 @@ contract ReimbursableGasStationAggregatorV3Oracle is AbstractReimbursableGasStat
         TEN_TO_18_PLUS_PRICE_FEED_DECIMALS = 10 ** 18 * (10 ** PRICE_FEED_DECIMALS);
     }
 
-    function _convertGasToERC20(uint256 _gasAmount) internal override view returns (uint256) {
+    function _convertGasToERC20(uint256 _gasAmount) internal view override returns (uint256) {
         uint256 gasCostWei = _gasAmount * tx.gasprice;
 
         uint256 price = _getPrice();
 
-        uint256 tokenCost = (gasCostWei * price * TEN_TO_REIMBURSEMENT_TOKEN_DECIMALS) / TEN_TO_18_PLUS_PRICE_FEED_DECIMALS;
+        uint256 tokenCost =
+            (gasCostWei * price * TEN_TO_REIMBURSEMENT_TOKEN_DECIMALS) / TEN_TO_18_PLUS_PRICE_FEED_DECIMALS;
         return tokenCost;
     }
 
@@ -58,4 +59,3 @@ contract ReimbursableGasStationAggregatorV3Oracle is AbstractReimbursableGasStat
         return uint256(price);
     }
 }
-

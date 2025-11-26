@@ -7,11 +7,49 @@ These contracts enable users to pay gas with an ERC-20 such as USDC
 # Deployment
 
 To deploy, clone, and run:
-```
+```bash
 forge install
+```
 
+Then for your network, set the right configuration in `foundry.toml` to have the RPC URL for the network, and where to validate 
+
+```toml
+[rpc_endpoints]
+NETWORK = "${NETWORK_RPC_URL}"     # e.g. https://base-mainnet.g.alchemy.com/v2/YOUR_API_KEY
+
+[etherscan]
+NETWORK = { key = "${ETHERSCAN_API_KEY}", url = "https://api.basescan.org/api" }
+```
+
+Then for the factory and gas station, copy `script/PayWithERC20/env.example` into a new `.env` file and set:
+
+```env
+PRIVATE_KEY=0x...
+REIMBURSEMENT_ADDRESS=0x...
+
+# Oracle & token config
+PRICE_FEED=0x...
+REIMBURSEMENT_ERC20=0x...
+TK_GAS_DELEGATE=0x000066a00056CD44008768E2aF00696e19A30084
+
+# Gas station economics
+GAS_FEE_BASIS_POINTS=100
+BASE_GAS_FEE_ERC20=10000
+MAX_DEPOSIT_LIMIT_ERC20=10000000
+MINIMUM_TRANSACTION_GAS_LIMIT_WEI=60000
+
+# CREATE2 salt for factory-created gas station
+GAS_STATION_SALT=0x...
+```
 
 # Making a Custom Reimbursable Gas Station
+
+If you want to make a custom gas station that uses Chainlink's AggregatorV3Interface with different ERC-20, you can inherit from ReimbursableGasStationAggregatorV3Oracle or deploy an instance of it with the right arguments. 
+
+If you want to make a custom gas station to use a different ERC-20 and not use the AggregatorV3Interface, you can inherit from AbstractReimbursableGasStation and implement the _convertGasToERC20 function to use a custom oracle
+```solidity
+function _convertGasToERC20(uint256 _gasAmount) internal virtual returns (uint256);
+```
 
 # Threat Model
 
@@ -53,14 +91,14 @@ We are first taking a small amount from the user, and then storing it in the gas
 If this fails, then it will revert quickly, preventing any more cost to the paymaster.
 After execution, the gas station tries to account for the amount of gas used and then pay back the user and the paymaster.
 
-The intial payment and validation will revert if:
+The intial payment and validation will revert (fail-fast) if:
 1. The signature is an invalid length 
 2. The target EoA is not delegated to our gas delegate
 3. The initial ERC-20 deposit is too high (this protects the user rather than the paymaster)
 4. The initial deposit reverts or does not fulfill the required amount
 This ensures that this will not continue unless there is that initial deposit
 
-From then on, the contract will NOT revert, and emit an event to notify an error if:
+From then on, the contract will try to NOT revert, and emit an event to notify an error if:
 1. There is a revert in the with execution; meaning that the user's transaction failed
 2. There are failures in sending funds to repay the user or pay the recipient 
 This is so there is a _guarantee_ that the recipient address will get paid even if there is a revert in an external contract. The user cannot have interactions happen without that deposit and paying that minimum.
