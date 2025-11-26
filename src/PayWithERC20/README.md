@@ -6,6 +6,11 @@ These contracts enable users to pay gas with an ERC-20 such as USDC
 
 # Deployment
 
+To deploy, clone, and run:
+```
+forge install
+
+
 # Making a Custom Reimbursable Gas Station
 
 # Threat Model
@@ -74,17 +79,47 @@ The transferfunctions for the ERC-20 do NOT have this parameter, so the paymaste
 
 If the user's transaction is more expensive than anticipated then either:
 1. The contract catches the revert when the gas is greater than _transactionGasLimitWei, and then continues as normal
-2. I amount is less than _transactionGasLimitWei, but more than the _initialDepositERC20, then the contract will attempt to reconcile this amount of money. There is no guarantee that this will be paid back, so the paymaster should set reasonable limits where the _initialDepositERC20 is more than the _transactionGasLimitWei when converted. Th
+2. I amount is less than _transactionGasLimitWei, but more than the _initialDepositERC20, then the contract will attempt to reconcile this amount of money. There is no guarantee that this will be paid back, so the paymaster should set reasonable limits where the _initialDepositERC20 is more than the _transactionGasLimitWei when converted. If this is in a failure state, it will not revert, but instead emit a GasUnpaid event. 
 
 ### The paymaster griefs the user with nonsensical transactions
 
+The paymaster is given a session intent that allows the gas station to do unlimited transactions with the ERC-20 on behalf of the user. The gas station will only perform that transfer if the session is valid and the budgeted _transactionGasLimitWei is greater than the minimum.
+
+A malicious paymaster could attempt an attack like:
+1. Get a valid session intent from the user (replayable by design)
+2. Send in a transaction that will definitely fail on execution
+3. Collect the gas cost of that transaction + the base fee
+
+This works as long as the session intent is valid. 
+To mitigate this, the user should set a short time to live on that intention (only a few blocks), and if the paymaster is malicious, the user should burn the counter associated with that sesssion.
+An untrustworthy paymaster should simply not be used if this is going on
+
+An alternative solution is to:
+1. Store the session as a limited number of times to be used in the contract to a constant maximum. This is acceptable, but not ideal since this would add an extra mapping to store each session and number of times it was used. This extra mapping would require another storage read and write on each transaction. 
+2. Have the user give another signature to limit on run time. This is unacceptable since it would add another signature required for the user, and we're already needing 2 signatures
+
 ### The paymaster steals funds from the user
+
+By design gas station can move the ERC-20 as the user
+This is limited by the fact the gas station has clear rules on how it will move as the user. Initially, it only takes the deposit, and can only take more if the gas cost was calculated to be more than the deposit but less than the budgeted amount. 
 
 ### On failure to reimburse, funds are locked in the contract
 
-### Oracle failure 
+It is unlikely, but possible, that the contract is unable to transfer reimbursements or change to the right place and there is a failure on transfer. At this point, the contract will emit a TransferFailedUnclaimedStored even, and intended recipient can claim it with claimUnclaimedGasReimbursements.  
 
 ### Non-standard ERC-20s used as the reimbursement token
+
+_For USDC, the ERC20_TRANSFER_SUCCEEDED_RETURN_DATA_CHECK immutable should always be set to FALSE in the constructor since it is standard_
+
+In the constructor, there is a ERC20_TRANSFER_SUCCEEDED_RETURN_DATA_CHECK immutable that can be set to true if the ERC-20 being used does NOT revert on transfer when the transfer fails, and then returns a boolean FALSE instead. This is to handle non-standard ERC-20 implementations.
+Without this extra check, if the paymaster is using non-standard ERC-20s for reimbursements, this could fail open, and the contract will believe that all be reimbursed.
+
+
+### Oracle failure 
+
+If the oracle becomes untrustworthy or fails for some reason, then the contract cannot calculate the price of gas. At this point, the contract should be abandonded and be redeployed with a new oracle.
+
+For USDC on Base, we intend to use the ETH/USDC Chainlink oracle, which is large enough that if it were to fail, there would be larger problems in the industry than just this contract. 
 
 # Deployments
 
