@@ -18,7 +18,7 @@ contract DeployReimbursableGasStationUSDCAndFactory is Script {
 
         // Factory constructor params
         address priceFeed = vm.envAddress("PRICE_FEED");
-        address reimbursementErc20 = vm.envAddress("REIMBURSEMENT_ERC20");
+        address reimbursementERC20 = vm.envAddress("REIMBURSEMENT_ERC20");
         address tkGasDelegate = vm.envAddress("TK_GAS_DELEGATE");
 
         // Gas station creation params
@@ -26,19 +26,19 @@ contract DeployReimbursableGasStationUSDCAndFactory is Script {
         address reimbursementAddress = vm.envAddress("REIMBURSEMENT_ADDRESS");
         uint16 gasFeeBasisPoints = uint16(vm.envUint("GAS_FEE_BASIS_POINTS"));
         uint256 baseGasFeeWei = vm.envUint("BASE_GAS_FEE_WEI");
-        uint256 baseGasFeeErc20 = vm.envUint("BASE_GAS_FEE_ERC20");
-        uint256 maxDepositLimitErc20 = vm.envUint("MAX_DEPOSIT_LIMIT_ERC20");
+        uint256 baseGasFeeERC20 = vm.envUint("BASE_GAS_FEE_ERC20");
+        uint256 maxDepositLimitERC20 = vm.envUint("MAX_DEPOSIT_LIMIT_ERC20");
         uint256 minimumTransactionGasLimitWei = vm.envUint("MINIMUM_TRANSACTION_GAS_LIMIT_WEI");
 
         vm.startBroadcast(deployerPrivateKey);
 
         // 1. Deploy factory
         ReimbursableGasStationUSDCFactory factory =
-            new ReimbursableGasStationUSDCFactory(priceFeed, reimbursementErc20, tkGasDelegate);
+            new ReimbursableGasStationUSDCFactory(priceFeed, reimbursementERC20, tkGasDelegate);
 
         console2.log("ReimbursableGasStationUSDCFactory deployed at:", address(factory));
         console2.log("Price Feed:", priceFeed);
-        console2.log("Reimbursement ERC20:", reimbursementErc20);
+        console2.log("Reimbursement ERC20:", reimbursementERC20);
         console2.log("TK Gas Delegate:", tkGasDelegate);
 
         // 2. Create a gas station instance via the factory
@@ -47,8 +47,8 @@ contract DeployReimbursableGasStationUSDCAndFactory is Script {
             reimbursementAddress,
             gasFeeBasisPoints,
             baseGasFeeWei,
-            baseGasFeeErc20,
-            maxDepositLimitErc20,
+            baseGasFeeERC20,
+            maxDepositLimitERC20,
             minimumTransactionGasLimitWei
         );
 
@@ -56,8 +56,8 @@ contract DeployReimbursableGasStationUSDCAndFactory is Script {
         console2.log("Reimbursement Address:", reimbursementAddress);
         console2.log("GAS_FEE_BASIS_POINTS:", gasFeeBasisPoints);
         console2.log("BASE_GAS_FEE_WEI:", baseGasFeeWei);
-        console2.log("BASE_GAS_FEE_ERC20:", baseGasFeeErc20);
-        console2.log("MAX_DEPOSIT_LIMIT_ERC20:", maxDepositLimitErc20);
+        console2.log("BASE_GAS_FEE_ERC20:", baseGasFeeERC20);
+        console2.log("MAX_DEPOSIT_LIMIT_ERC20:", maxDepositLimitERC20);
         console2.log("MINIMUM_TRANSACTION_GAS_LIMIT_WEI:", minimumTransactionGasLimitWei);
 
         vm.stopBroadcast();

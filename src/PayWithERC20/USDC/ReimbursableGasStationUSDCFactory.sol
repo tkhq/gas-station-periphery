@@ -8,9 +8,9 @@ contract ReimbursableGasStationUSDCFactory {
     address public immutable REIMBURSEMENT_ERC20;
     address public immutable TK_GAS_DELEGATE;
 
-    constructor(address _priceFeed, address _reimbursementErc20, address _tkGasDelegate) {
+    constructor(address _priceFeed, address _reimbursementERC20, address _tkGasDelegate) {
         PRICE_FEED = _priceFeed;
-        REIMBURSEMENT_ERC20 = _reimbursementErc20;
+        REIMBURSEMENT_ERC20 = _reimbursementERC20;
         TK_GAS_DELEGATE = _tkGasDelegate;
     }
 
@@ -19,8 +19,8 @@ contract ReimbursableGasStationUSDCFactory {
         address _reimbursementAddress,
         uint16 _gasFeeBasisPoints,
         uint256 _baseGasFeeWei,
-        uint256 _baseGasFeeErc20,
-        uint256 _maxDepositLimit,
+        uint256 _baseGasFeeERC20,
+        uint256 _maxDepositLimitERC20,
         uint256 _minimumTransactionGasLimitWei
     ) external returns (address) {
         return address(
@@ -31,8 +31,8 @@ contract ReimbursableGasStationUSDCFactory {
                 REIMBURSEMENT_ERC20,
                 _gasFeeBasisPoints,
                 _baseGasFeeWei,
-                _baseGasFeeErc20,
-                _maxDepositLimit,
+                _baseGasFeeERC20,
+                _maxDepositLimitERC20,
                 _minimumTransactionGasLimitWei
             )
         );

@@ -31,6 +31,17 @@ abstract contract AbstractReimbursableGasStation {
     event TransferFailedUnclaimedStored(address _to, uint256 _amount);
     event InitialDeposit(address _from, uint256 _initialDepositERC20);
     event GasUnpaid(address _from, uint256 _amount);
+    event GasStationCreated(
+        address _tkGasDelegate,
+        address _reimbursementAddress,
+        address _reimbursementERC20,
+        uint16 _gasFeeBasisPoints,
+        bool _ERC20TransferSucceededReturnDataCheck,
+        uint256 _baseGasFeeWei,
+        uint256 _baseGasFeeERC20,
+        uint256 _maxDepositLimitERC20,
+        uint256 _minimumTransactionGasLimitWei
+    );
 
     // Function selectors for overloaded delegate methods
     bytes4 internal constant SELECTOR_EXECUTE_RETURNS_VALUE = bytes4(keccak256("executeReturns(address,uint256,bytes)"));
@@ -70,24 +81,36 @@ abstract contract AbstractReimbursableGasStation {
     constructor(
         address _tkGasDelegate,
         address _reimbursementAddress,
-        address _reimbursementErc20,
+        address _reimbursementERC20,
         uint16 _gasFeeBasisPoints,
-        bool _erc20TransferSucceededReturnDataCheck, // only set to true if you need to check the return data (does not revert on failure)
+        bool _ERC20TransferSucceededReturnDataCheck, // only set to true if you need to check the return data (does not revert on failure)
         uint256 _baseGasFeeWei,
-        uint256 _baseGasFeeErc20,
-        uint256 _maxDepositLimit,
+        uint256 _baseGasFeeERC20,
+        uint256 _maxDepositLimitERC20,
         uint256 _minimumTransactionGasLimitWei
     ) {
         TK_GAS_DELEGATE = _tkGasDelegate;
         REIMBURSEMENT_ADDRESS = _reimbursementAddress;
-        REIMBURSEMENT_ERC20 = _reimbursementErc20;
-        REIMBURSEMENT_ERC20_TOKEN = IERC20(_reimbursementErc20);
+        REIMBURSEMENT_ERC20 = _reimbursementERC20;
+        REIMBURSEMENT_ERC20_TOKEN = IERC20(_reimbursementERC20);
         GAS_FEE_BASIS_POINTS = _gasFeeBasisPoints;
         BASE_GAS_FEE_WEI = _baseGasFeeWei;
-        BASE_GAS_FEE_ERC20 = _baseGasFeeErc20;
-        MAX_DEPOSIT_LIMIT_ERC20 = _maxDepositLimit;
-        ERC20_TRANSFER_SUCCEEDED_RETURN_DATA_CHECK = _erc20TransferSucceededReturnDataCheck;
+        BASE_GAS_FEE_ERC20 = _baseGasFeeERC20;
+        MAX_DEPOSIT_LIMIT_ERC20 = _maxDepositLimitERC20;
+        ERC20_TRANSFER_SUCCEEDED_RETURN_DATA_CHECK = _ERC20TransferSucceededReturnDataCheck;
         MINIMUM_TRANSACTION_GAS_LIMIT_WEI = _minimumTransactionGasLimitWei;
+
+        emit GasStationCreated(
+            _tkGasDelegate,
+            _reimbursementAddress,
+            _reimbursementERC20,
+            _gasFeeBasisPoints,
+            _ERC20TransferSucceededReturnDataCheck,
+            _baseGasFeeWei,
+            _baseGasFeeERC20,
+            _maxDepositLimitERC20,
+            _minimumTransactionGasLimitWei
+        );
     }
 
     function _convertGasToERC20(uint256 _gasAmount) internal virtual returns (uint256);

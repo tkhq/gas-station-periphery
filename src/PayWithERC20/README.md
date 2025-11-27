@@ -68,6 +68,23 @@ function _convertGasToERC20(uint256 _gasAmount) internal virtual returns (uint25
 
 # Fee calculation
 
+The fees are calculated in _calculateReimbursementAmount
+
+```solidity
+    function _calculateReimbursementAmount(uint256 _gasStart) internal returns (uint256, uint256) {
+        uint256 gasUsed = _gasStart - gasleft();
+        gasUsed += (gasUsed * GAS_FEE_BASIS_POINTS / 10000) + BASE_GAS_FEE_WEI;
+
+        return (gasUsed, _convertGasToERC20(gasUsed) + BASE_GAS_FEE_ERC20);
+    }
+```
+
+The _gasStart variable tries to come from *as early as possible* in the transaction, not just wrapping the customer's desired execution. 
+The purpose of BASE_GAS_FEE_WEI is to cover the cost of all the transfers needed to account during this transaction. On L2s, I suggest you set this to at least 60,000 wei.
+The purpose of BASE_GAS_FEE_ERC20 is to prevent sybil attacks and to have an absolute minimum amount of profit per transaction. I suggest setting this to a very small number. I use 1/10 of a cent in testing.
+The purpose of GAS_FEE_BASIS_POINTS is to calculate the profit per transaction. This does not get multiplied against the BASE_GAS_FEE_WEI
+
+
 # Threat Model
 
 ## What is it? 
@@ -179,5 +196,5 @@ For USDC on Base, we intend to use the ETH/USDC Chainlink oracle, which is large
 
 ## Base Mainnet Deployments
 
-- **ReimbursableGasStationUSDCFactory**: [0xaFC50b2BC99Cb80EE855B76E9283F135e7eF6Ca1](https://basescan.org/address/0xaFC50b2BC99Cb80EE855B76E9283F135e7eF6Ca1)
-- **ReimbursableGasStationUSDC**: [0x1B3b8c1571d25fa7707873e42099bD0E30A8802b](https://basescan.org/address/0x1B3b8c1571d25fa7707873e42099bD0E30A8802b#code)
+- **ReimbursableGasStationUSDCFactory**: [0x6e2c08084FBa286Ed2113aE70e84252b4Ed1576A](https://basescan.org/address/0x6e2c08084FBa286Ed2113aE70e84252b4Ed1576A)
+- **ReimbursableGasStationUSDC**: [0x1966ad010A705ED1d1a4Ea8b0933De1888aB1e97](https://basescan.org/address/0x1966ad010A705ED1d1a4Ea8b0933De1888aB1e97#code)

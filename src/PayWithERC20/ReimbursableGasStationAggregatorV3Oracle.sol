@@ -18,24 +18,24 @@ contract ReimbursableGasStationAggregatorV3Oracle is AbstractReimbursableGasStat
         address _priceFeed,
         address _tkGasDelegate,
         address _reimbursementAddress,
-        address _reimbursementErc20,
+        address _reimbursementERC20,
         uint8 _reimbursementTokenDecimals,
         uint16 _gasFeeBasisPoints,
-        bool _erc20TransferSucceededReturnDataCheck,
+        bool _ERC20TransferSucceededReturnDataCheck,
         uint256 _baseGasFeeWei,
-        uint256 _baseGasFeeErc20,
-        uint256 _maxDepositLimit,
+        uint256 _baseGasFeeERC20,
+        uint256 _maxDepositLimitERC20,
         uint256 _minimumTransactionGasLimitWei
     )
         AbstractReimbursableGasStation(
             _tkGasDelegate,
             _reimbursementAddress,
-            _reimbursementErc20,
+            _reimbursementERC20,
             _gasFeeBasisPoints,
-            _erc20TransferSucceededReturnDataCheck,
+            _ERC20TransferSucceededReturnDataCheck,
             _baseGasFeeWei,
-            _baseGasFeeErc20,
-            _maxDepositLimit,
+            _baseGasFeeERC20,
+            _maxDepositLimitERC20,
             _minimumTransactionGasLimitWei
         )
     {
