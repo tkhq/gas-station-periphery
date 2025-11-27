@@ -50,6 +50,7 @@ abstract contract AbstractReimbursableGasStation {
     address public immutable TK_GAS_DELEGATE;
     address public immutable REIMBURSEMENT_ADDRESS;
     address public immutable REIMBURSEMENT_ERC20;
+    uint256 public immutable BASE_GAS_FEE_WEI;
     uint256 public immutable BASE_GAS_FEE_ERC20;
     uint256 public immutable MAX_DEPOSIT_LIMIT_ERC20;
     uint256 public immutable MINIMUM_TRANSACTION_GAS_LIMIT_WEI;
@@ -72,7 +73,8 @@ abstract contract AbstractReimbursableGasStation {
         address _reimbursementErc20,
         uint16 _gasFeeBasisPoints,
         bool _erc20TransferSucceededReturnDataCheck, // only set to true if you need to check the return data (does not revert on failure)
-        uint256 _minimumGasFee,
+        uint256 _baseGasFeeWei,
+        uint256 _baseGasFeeErc20,
         uint256 _maxDepositLimit,
         uint256 _minimumTransactionGasLimitWei
     ) {
@@ -81,7 +83,8 @@ abstract contract AbstractReimbursableGasStation {
         REIMBURSEMENT_ERC20 = _reimbursementErc20;
         REIMBURSEMENT_ERC20_TOKEN = IERC20(_reimbursementErc20);
         GAS_FEE_BASIS_POINTS = _gasFeeBasisPoints;
-        BASE_GAS_FEE_ERC20 = _minimumGasFee;
+        BASE_GAS_FEE_WEI = _baseGasFeeWei;
+        BASE_GAS_FEE_ERC20 = _baseGasFeeErc20;
         MAX_DEPOSIT_LIMIT_ERC20 = _maxDepositLimit;
         ERC20_TRANSFER_SUCCEEDED_RETURN_DATA_CHECK = _erc20TransferSucceededReturnDataCheck;
         MINIMUM_TRANSACTION_GAS_LIMIT_WEI = _minimumTransactionGasLimitWei;
@@ -171,7 +174,7 @@ abstract contract AbstractReimbursableGasStation {
         validPackedSessionSignatureData(_packedSessionSignatureData)
         returns (uint256 gasStart)
     {
-        gasStart = gasleft();
+        gasStart = gasleft(); // we want to capture the gas used before initial deposit transfer is made
         uint256 startBalance = REIMBURSEMENT_ERC20_TOKEN.balanceOf(address(this));
         // This function works by pulling the entire gas limit from the user in erc20 tokens, then paying back the unused gas
         bool transferSucceeded = _trySessionTransfer(
@@ -189,7 +192,7 @@ abstract contract AbstractReimbursableGasStation {
 
     function _calculateReimbursementAmount(uint256 _gasStart) internal returns (uint256, uint256) {
         uint256 gasUsed = _gasStart - gasleft();
-        gasUsed += (gasUsed * GAS_FEE_BASIS_POINTS / 10000);
+        gasUsed += (gasUsed * GAS_FEE_BASIS_POINTS / 10000) + BASE_GAS_FEE_WEI;
 
         return (gasUsed, _convertGasToERC20(gasUsed) + BASE_GAS_FEE_ERC20);
     }

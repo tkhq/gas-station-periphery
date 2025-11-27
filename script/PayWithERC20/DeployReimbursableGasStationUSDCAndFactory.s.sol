@@ -25,6 +25,7 @@ contract DeployReimbursableGasStationUSDCAndFactory is Script {
         bytes32 salt = vm.envBytes32("GAS_STATION_SALT");
         address reimbursementAddress = vm.envAddress("REIMBURSEMENT_ADDRESS");
         uint16 gasFeeBasisPoints = uint16(vm.envUint("GAS_FEE_BASIS_POINTS"));
+        uint256 baseGasFeeWei = vm.envUint("BASE_GAS_FEE_WEI");
         uint256 baseGasFeeErc20 = vm.envUint("BASE_GAS_FEE_ERC20");
         uint256 maxDepositLimitErc20 = vm.envUint("MAX_DEPOSIT_LIMIT_ERC20");
         uint256 minimumTransactionGasLimitWei = vm.envUint("MINIMUM_TRANSACTION_GAS_LIMIT_WEI");
@@ -45,6 +46,7 @@ contract DeployReimbursableGasStationUSDCAndFactory is Script {
             salt,
             reimbursementAddress,
             gasFeeBasisPoints,
+            baseGasFeeWei,
             baseGasFeeErc20,
             maxDepositLimitErc20,
             minimumTransactionGasLimitWei
@@ -53,6 +55,7 @@ contract DeployReimbursableGasStationUSDCAndFactory is Script {
         console2.log("ReimbursableGasStationUSDC created at:", gasStation);
         console2.log("Reimbursement Address:", reimbursementAddress);
         console2.log("GAS_FEE_BASIS_POINTS:", gasFeeBasisPoints);
+        console2.log("BASE_GAS_FEE_WEI:", baseGasFeeWei);
         console2.log("BASE_GAS_FEE_ERC20:", baseGasFeeErc20);
         console2.log("MAX_DEPOSIT_LIMIT_ERC20:", maxDepositLimitErc20);
         console2.log("MINIMUM_TRANSACTION_GAS_LIMIT_WEI:", minimumTransactionGasLimitWei);

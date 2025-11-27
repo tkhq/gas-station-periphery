@@ -34,7 +34,8 @@ TK_GAS_DELEGATE=0x000066a00056CD44008768E2aF00696e19A30084
 
 # Gas station economics
 GAS_FEE_BASIS_POINTS=100
-BASE_GAS_FEE_ERC20=10000
+BASE_GAS_FEE_WEI=60000
+BASE_GAS_FEE_ERC20=1000
 MAX_DEPOSIT_LIMIT_ERC20=10000000
 MINIMUM_TRANSACTION_GAS_LIMIT_WEI=60000
 
@@ -64,6 +65,8 @@ If you want to make a custom gas station to use a different ERC-20 and not use t
 ```solidity
 function _convertGasToERC20(uint256 _gasAmount) internal virtual returns (uint256);
 ```
+
+# Fee calculation
 
 # Threat Model
 
@@ -176,5 +179,5 @@ For USDC on Base, we intend to use the ETH/USDC Chainlink oracle, which is large
 
 ## Base Mainnet Deployments
 
-- **ReimbursableGasStationUSDCFactory**: [0xf4bb36e54bf69434cc2f483cfee7a6b24f55323f](https://basescan.org/address/0xf4bb36e54bf69434cc2f483cfee7a6b24f55323f)
-- **ReimbursableGasStationUSDC**: [0x4c0a2998b4dc7baf418109b80e5dde7395703dcb](https://basescan.org/address/0x4c0a2998b4dc7baf418109b80e5dde7395703dcb#code)
+- **ReimbursableGasStationUSDCFactory**: [0xaFC50b2BC99Cb80EE855B76E9283F135e7eF6Ca1](https://basescan.org/address/0xaFC50b2BC99Cb80EE855B76E9283F135e7eF6Ca1)
+- **ReimbursableGasStationUSDC**: [0x1B3b8c1571d25fa7707873e42099bD0E30A8802b](https://basescan.org/address/0x1B3b8c1571d25fa7707873e42099bD0E30A8802b#code)

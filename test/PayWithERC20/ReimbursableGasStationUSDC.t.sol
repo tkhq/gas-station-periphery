@@ -22,7 +22,8 @@ contract ReimbursableGasStationUSDCTestBase is Test {
     address payable public userA;
 
     uint16 public constant GAS_FEE_BASIS_POINTS = 100; // 1% (100 basis points)
-    uint256 public constant BASE_GAS_FEE_ERC20 = 20_000; // Base gas fee: 2 cents in USDC (0.02 * 10^6)
+    uint256 public constant BASE_GAS_FEE_WEI = 20_000; // Base gas fee in wei
+    uint256 public constant BASE_GAS_FEE_ERC20 = 1_000; // Base gas fee: 1/10 cent in USDC (0.001 * 10^6)
     uint256 public constant MAX_GAS_LIMIT_ERC20 = 100_000_000; // Max gas limit: 100 dollars in USDC (100 * 10^6)
     uint8 public constant ORACLE_DECIMALS = 8;
 
@@ -62,6 +63,7 @@ contract ReimbursableGasStationUSDCTestBase is Test {
             reimbursementAddress,
             address(usdcToken),
             GAS_FEE_BASIS_POINTS,
+            BASE_GAS_FEE_WEI,
             BASE_GAS_FEE_ERC20,
             MAX_GAS_LIMIT_ERC20,
             60_000

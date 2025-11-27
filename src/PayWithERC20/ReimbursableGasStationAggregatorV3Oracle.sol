@@ -22,7 +22,8 @@ contract ReimbursableGasStationAggregatorV3Oracle is AbstractReimbursableGasStat
         uint8 _reimbursementTokenDecimals,
         uint16 _gasFeeBasisPoints,
         bool _erc20TransferSucceededReturnDataCheck,
-        uint256 _minimumGasFee,
+        uint256 _baseGasFeeWei,
+        uint256 _baseGasFeeErc20,
         uint256 _maxDepositLimit,
         uint256 _minimumTransactionGasLimitWei
     )
@@ -32,7 +33,8 @@ contract ReimbursableGasStationAggregatorV3Oracle is AbstractReimbursableGasStat
             _reimbursementErc20,
             _gasFeeBasisPoints,
             _erc20TransferSucceededReturnDataCheck,
-            _minimumGasFee,
+            _baseGasFeeWei,
+            _baseGasFeeErc20,
             _maxDepositLimit,
             _minimumTransactionGasLimitWei
         )

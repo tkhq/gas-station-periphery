@@ -10,7 +10,8 @@ contract ReimbursableGasStationUSDC is ReimbursableGasStationAggregatorV3Oracle 
         address _reimbursementAddress,
         address _reimbursementErc20,
         uint16 _gasFeeBasisPoints,
-        uint256 _minimumGasFee,
+        uint256 _baseGasFeeWei,
+        uint256 _baseGasFeeErc20,
         uint256 _maxDepositLimit,
         uint256 _minimumTransactionGasLimitWei
     )
@@ -22,7 +23,8 @@ contract ReimbursableGasStationUSDC is ReimbursableGasStationAggregatorV3Oracle 
             6, // USDC decimals
             _gasFeeBasisPoints,
             false, // USDC always uses false for _erc20TransferSucceededReturnDataCheck
-            _minimumGasFee,
+            _baseGasFeeWei,
+            _baseGasFeeErc20,
             _maxDepositLimit,
             _minimumTransactionGasLimitWei
         )
