@@ -198,3 +198,8 @@ For USDC on Base, we intend to use the ETH/USDC Chainlink oracle, which is large
 
 - **ReimbursableGasStationUSDCFactory**: [0x6e2c08084FBa286Ed2113aE70e84252b4Ed1576A](https://basescan.org/address/0x6e2c08084FBa286Ed2113aE70e84252b4Ed1576A)
 - **ReimbursableGasStationUSDC**: [0x1966ad010A705ED1d1a4Ea8b0933De1888aB1e97](https://basescan.org/address/0x1966ad010A705ED1d1a4Ea8b0933De1888aB1e97#code)
+
+## Monad Mainnet Deployments
+
+- **ReimbursableGasStationUSDCFactory**: [0x5ce1877F39722A207E014bb172d3edC8f080dC84](https://monad.xyz/explorer/address/0x5ce1877F39722A207E014bb172d3edC8f080dC84)
+- **ReimbursableGasStationUSDC**: [0x339E29a155F180dc0f41B091F3Eb403Fa83a4882](https://monad.xyz/explorer/address/0x339E29a155F180dc0f41B091F3Eb403Fa83a4882)
