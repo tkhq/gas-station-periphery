@@ -172,8 +172,10 @@ An alternative solution is to:
 
 ### The paymaster steals funds from the user
 
-By design gas station can move the ERC-20 as the user
+By design gas station can move the ERC-20 as the user.
 This is limited by the fact the gas station has clear rules on how it will move as the user. Initially, it only takes the deposit, and can only take more if the gas cost was calculated to be more than the deposit but less than the budgeted amount. 
+
+These contracts are immutable so the paymaster cannot change the rules on how the user's money is transferred. 
 
 ### On failure to reimburse, funds are locked in the contract
 
