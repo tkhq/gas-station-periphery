@@ -190,7 +190,18 @@ Without this extra check, if the paymaster is using non-standard ERC-20s for rei
 
 If the oracle becomes untrustworthy or fails for some reason, then the contract cannot calculate the price of gas. At this point, the contract should be abandonded and be redeployed with a new oracle.
 
+Using a USD (not USDC) oracle is acceptable for testing if a network doesn't have a USDC oracle, but due to depeg risk, it's better to use a proper gasToken/USDC oracle.
+
 For USDC on Base, we intend to use the ETH/USDC Chainlink oracle, which is large enough that if it were to fail, there would be larger problems in the industry than just this contract. 
+
+# Logging risky events and what to do in case of disaster
+
+1. A large number of reverts during the validation steps; any error in https://github.com/tkhq/gas-station-periphery/blob/main/src/PayWithERC20/AbstractReimbursableGasStation.sol#L11-L15 would cost the paymaster gas. Example https://github.com/tkhq/gas-station-periphery/blob/main/src/PayWithERC20/AbstractReimbursableGasStation.sol#L210. These are situations where the attacker gains nothing, but we are paying for it since the transaction can't start. Addresses that ask for this a lot should be banned/rate limited. This is meant to "fail fast" in case the user doesn't have enough funds or the target is not delegated properly
+
+2. TransferFailedUnclaimedStored event where the paymaster can't get the payment from the transaction, but the funds are safely stored in the contract https://github.com/tkhq/gas-station-periphery/blob/main/src/PayWithERC20/AbstractReimbursableGasStation.sol#L239 and https://github.com/tkhq/gas-station-periphery/blob/main/src/PayWithERC20/AbstractReimbursableGasStation.sol#L260. In this case, it's wise to look up why it could not pay back the transaction. If something is wrong with the reciever, or the ERC-20 we're using is broken then it's best to abandon this contract instance and use the factory to create a new one.
+
+3. GasUnpaid event where the paymaster was not paid back https://github.com/tkhq/gas-station-periphery/blob/main/src/PayWithERC20/AbstractReimbursableGasStation.sol#L251. This is the most dangerous where the calculation was not able to get paid back. The end user created a very expensive transaction, and the initial deposit was unable to cover it, and the end user had no funds to pay this back. This can happen by accident occasionally, but if it happens a lot, that user is most likely doing something malicious.
+
 
 # Deployments
 
